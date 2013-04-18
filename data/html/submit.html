@@ -2,7 +2,7 @@
 {% block content %}
     <div class="fileupload">
         <div class="page-header">
-            <h3>New Analysis <small>use this form to add a new analysis task</smalll></h3>
+            <h3>New Analysis <small>use this form to add a new analysis task</small></h3>
         </div>
         {% if context.error_toggle %}
             <div class="alert alert-error"><strong>OOPS!</strong> Some error occurred, please check the instructions below!</div>
@@ -14,11 +14,30 @@
                     <div class="controls">
                         <input type="file" name="file" class="input-xlarge" id="input01">
                         {% if context.error_file %}
-                            <span class="help-inline">{{error_file}}</span>
+                            <span class="help-inline">{{context.error_file}}</span>
                         {% endif %}
                     </div>
                 </div>
-
+                <div class="control-group {{'error' if context.get('error_url', '') else ''}}">
+                    <label class="control-label" for="input05">URL</label>
+                    <div class="controls">
+                        <input type="text" name="url" class="input-xlarge" id="input05" value="{{url}}">
+                        {% if context.error_url %}
+                            <span class="help-inline">{{context.error_url}}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="control-group {{'error' if context.get('error_urlrd','') else ''}}">
+                    <label class="control-label" for="select02">URL Redirect</label>
+                    <div class="controls">
+                        <select id="select02" name="urlrd">
+                            <option {{'selected' if urlrd == 'None' else ''}} value="None">None</option>
+                        </select>
+                        {% if context.error_urlrd %}
+                            <span class="help-inline">{{context.error_urlrd}}</span>
+                        {% endif %}
+                    </div>
+                </div>
                 <div class="control-group {{'error' if context.get('error_package', '') else ''}}">
                     <label class="control-label" for="input02">Package to use</label>
                     <div class="controls">

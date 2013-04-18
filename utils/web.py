@@ -25,6 +25,7 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))
 from lib.cuckoo.core.database import Database
 from lib.cuckoo.common.constants import CUCKOO_ROOT
 from lib.cuckoo.common.utils import store_temp_file
+from lib.cuckoo.common.config import Config
 
 # Templating engine.
 env = Environment()
@@ -53,6 +54,15 @@ def index():
 def browse():
     rows = db.list_tasks()
 
+    try:
+        pcfg = Config(cfg=os.path.join(CUCKOO_ROOT,"conf","processing.conf"))
+        suricfg = pcfg.get('suricata')
+        molochcfg = pcfg.get('network-moloch')
+    except:
+        suricfg = None
+        molochcfg = None
+        print("failed to get suri/moloch config blocks")
+
     tasks = []
     for row in rows:
         task = {
@@ -75,7 +85,7 @@ def browse():
 
     template = env.get_template("browse.html")
 
-    return template.render({"rows" : tasks, "os" : os})
+    return template.render({"rows" : tasks, "os" : os, "suricfg" : suricfg, "molochcfg" : molochcfg})
 
 @route("/static/<filename:path>")
 def server_static(filename):
@@ -90,6 +100,8 @@ def submit():
     options  = request.forms.get("options", "")
     priority = request.forms.get("priority", 1)
     timeout  = request.forms.get("timeout", "")
+    url      = request.forms.get("url","")
+    urlrd    = request.forms.get("urlrd","")
     data = request.files.file
 
     try:
@@ -99,11 +111,12 @@ def submit():
         context["error_priority"] = "Needs to be a number"
         errors = True
 
-    if data == None or data == "":
+    # File or URL mandatory
+    if (data == None or data == "") and (url == None or url == ""):
         context["error_toggle"] = True
         context["error_file"] = "Mandatory"
         errors = True
-
+       
     if errors:
         template = env.get_template("submit.html")
         return template.render({"timeout" : timeout,
@@ -111,18 +124,31 @@ def submit():
                                 "options" : options,
                                 "package" : package,
                                 "context" : context})
+    if url != None and url != "":
+        task_id = db.add_url(url,
+                             package=package,
+                             timeout=timeout,
+                             options=options,
+                             priority=priority,
+                             )
+        
+        template = env.get_template("success.html")
+        return template.render({"taskid" : task_id,
+                                "url" : url.decode("utf-8")})
 
-    temp_file_path = store_temp_file(data.file.read(), data.filename)
 
-    task_id= db.add_path(file_path=temp_file_path,
-                         timeout=timeout,
-                         priority=priority,
-                         options=options,
-                         package=package)
+    else:
+        temp_file_path = store_temp_file(data.file.read(), data.filename)
 
-    template = env.get_template("success.html")
-    return template.render({"taskid" : task_id,
-                            "submitfile" : data.filename.decode("utf-8")})
+        task_id= db.add_path(file_path=temp_file_path,
+                             timeout=timeout,
+                             priority=priority,
+                             options=options,
+                             package=package)
+
+        template = env.get_template("success.html")
+        return template.render({"taskid" : task_id,
+                                "submitfile" : data.filename.decode("utf-8")})
 
 @route("/view/<task_id>")
 def view(task_id):
@@ -135,6 +161,67 @@ def view(task_id):
         return HTTPError(code=404, output="Report not found")
 
     return open(report_path, "rb").read()
+
+@route("/pcap/<task_id>")
+def pcap(task_id):
+    # Check if the specified task ID is valid
+    if not task_id.isdigit():
+        return HTTPError(code=404, output="The specified ID is invalid")
+
+    pcap_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id)
+    #print pcap_path
+    # Check if the HTML report exists
+    if not os.path.exists(pcap_path):
+        return HTTPError(code=404, output="Report not found")
+
+    # Return content of the HTML report
+    return static_file("dump.pcap", root=pcap_path, download="%s.pcap" % (task_id))
+
+@route("/surihttp/<task_id>")
+def surihttp(task_id):
+    # Check if the specified task ID is valid
+    if not task_id.isdigit():
+        return HTTPError(code=404, output="The specified ID is invalid")
+
+    suri_http_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs","http.log")
+    #print suri_http_path
+    # Check if the HTML report exists
+    if not os.path.exists(suri_http_path):
+        return HTTPError(code=404, output="Report not found")
+    response.set_header('Content-Type', 'text/plain; charset=UTF-8')
+    # Return content of the HTML report
+    return open(suri_http_path, "rb").read()
+
+@route("/surialert/<task_id>")
+def surialert(task_id):
+    # Check if the specified task ID is valid
+    if not task_id.isdigit():
+        return HTTPError(code=404, output="The specified ID is invalid")
+
+    suri_alert_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs","alert")
+    #print suri_alert_path
+    # Check if the HTML report exists
+    if not os.path.exists(suri_alert_path):
+        return HTTPError(code=404, output="Report not found")
+    response.set_header('Content-Type', 'text/plain; charset=UTF-8')
+    # Return content of the HTML report
+    return open(suri_alert_path, "rb").read()
+
+@route("/surifiles/<task_id>")
+def surifiles(task_id):
+    # Check if the specified task ID is valid
+    if not task_id.isdigit():
+        return HTTPError(code=404, output="The specified ID is invalid")
+
+    surizip_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs","files.zip")
+    print surizip_path
+    # Check if the HTML report exists
+    if not os.path.exists(surizip_path):
+        return HTTPError(code=404, output="Report not found")
+
+    # Return content of the HTML report
+    return static_file(os.path.basename(surizip_path),root=os.path.dirname(surizip_path),download="%s.zip" % (task_id))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

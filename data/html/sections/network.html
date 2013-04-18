@@ -82,6 +82,76 @@
             </div>
         </div>
         {% endif %}
+    {% endif %}
+    {% if results.suricata %}
+           {% if results.suricata.alerts %}
+                <div>
+                    <h4><a href="javascript:showHide('suricataalert');">Suricata Alerts</a></h4>
+                    <div id="suricataalert" style="display: none;">
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>Suricata Alerts</th>
+                            </tr>
+                            {% for e in results.suricata.alerts %}
+                            <tr>
+                                <td><span class="mono">{{e}}</span></td>
+                            </tr>
+                            {% endfor %} 
+                        </table>
+                     </div>
+                </div>
+           {% endif %}
+           {% if results.suricata.http %}
+                <div>
+                    <h4><a href="javascript:showHide('suricatahttp');">Suricata HTTP Log</a></h4>
+                    <div id="suricatahttp" style="display: none;">
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>Suricata HTTP</th>
+                            </tr>
+                            {% for e in results.suricata.http %}
+                            <tr>
+                                <td><span class="mono">{{e}}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                     </div>
+                </div>
+           {% endif %}
+           {% if results.suricata.tls %}
+                <div>
+                    <h4><a href="javascript:showHide('suricatatls');">Suricata TLS Log</a></h4>
+                    <div id="suricatatls" style="display: none;">
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>Suricata TLS</th>
+                            </tr>
+                            {% for e in results.suricata.tls %}
+                            <tr>
+                                <td><span class="mono">{{e}}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                     </div>
+                </div>
+           {% endif %}
+           {% if results.suricata.files %}
+                <div>
+                    <h4><a href="javascript:showHide('suricatafiles');">Suricata File Log</a></h4>
+                    <div id="suricatafiles" style="display: none;">
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>Suricata Files</th>
+                            </tr>
+                            {% for e in results.suricata.files %}
+                            <tr>
+                                <td><span class="mono">{{e}}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                     </div>
+                </div>
+           {% endif %}
     {% else %}
         Nothing to display.
     {% endif %}

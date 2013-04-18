@@ -10,6 +10,15 @@
                     <th>ID</th>
                     <th>Category</th>
                     <th style="width: 40%;">Target</th>
+                    <th>PCAP</th>
+                    {% if suricfg.enabled %}
+                        <th>Suri HTTP</th>
+                        <th>Suri Alerts</th>
+                        <th>Suri Extracted</th>
+                    {% endif %}
+                    {% if molochcfg.enabled %}
+                        <th>Moloch</th>
+                    {% endif %}
                     <th>Added</th>
                     <th>Status</th>
                 </tr>
@@ -34,6 +43,15 @@
                             </a>
                         {% endif %}
                     </td>
+                    <td><a href="/pcap/{{row.id}}"><span class="mono">PCAP</span></a></td>
+                    {% if suricfg.enabled %}
+                        <td><a href="/surihttp/{{row.id}}"><span class="mono">Suri HTTP</span></a></td>
+                        <td><a href="/surialert/{{row.id}}"><span class="mono">Suri Alerts</span></a></td>
+                        <td><a href="/surifiles/{{row.id}}"><span class="mono">Suri Extracted</span></a></td>
+                    {% endif %}
+                    {% if molochcfg.enabled %}
+                        <td><a href="{{molochcfg.base}}/?date=-1&expression=tags+%3D%3D+%22{{row.id}}%22+%26%26+tags+%3D%3D+%22node%3A{{molochcfg.node}}%22" target="_blank"><span class="mono">Moloch</span></a></td>
+                    {% endif %}
                     <td>{{row.added_on}}</td>
                     <td>{{row.status}}</td>
                 </tr>
@@ -42,3 +60,4 @@
         </table>
     </div>
 {% endblock %}
+
