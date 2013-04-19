@@ -48,7 +48,7 @@ class NetworkMoloch(Processing):
             return results        
         try:
             cmd = "%s -c %s -r %s -n %s -t %s" % (MOLOCH_CAPTURE_BIN,MOLOCH_CAPTURE_CONF,self.pcap_path,CUCKOO_INSTANCE_TAG,task_id)
-            ret,stdout,sderr = self.cmd_wrapper(cmd)
+            ret,stdout,stderr = self.cmd_wrapper(cmd)
             if ret == 0:
                log.warning("moloch: imported pcap %s" % (self.pcap_path))
             else:
