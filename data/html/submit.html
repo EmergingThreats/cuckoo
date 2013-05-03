@@ -32,6 +32,23 @@
                     <div class="controls">
                         <select id="select02" name="urlrd">
                             <option {{'selected' if urlrd == 'None' else ''}} value="None">None</option>
+                            {% for rd in redirectors %}
+                                 <option {{'selected' if urlrd == "{{rd}}" else ''}} value="{{rd}}">{{rd}}</option>
+                            {% endfor %}
+                        </select>
+                        {% if context.error_urlrd %}
+                            <span class="help-inline">{{context.error_urlrd}}</span>
+                        {% endif %}
+                    </div>
+                </div>
+               <div class="control-group {{'error' if context.get('error_pool_id','') else ''}}">
+                    <label class="control-label" for="select03">POOL</label>
+                    <div class="controls">
+                        <select id="select03" name="pool_id">
+                            <option {{'selected' if pool_id == "default" else ''}} value="default">default</option>
+                        {% for pool in pools %}
+                            <option {{'selected' if pool_id == "{{pool}}" else ''}} value="{{pool}}">{{pool}}</option>
+                        {% endfor %}
                         </select>
                         {% if context.error_urlrd %}
                             <span class="help-inline">{{context.error_urlrd}}</span>

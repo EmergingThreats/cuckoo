@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--priority", type=int, action="store", default=1, help="Specify a priority for the analysis represented by an integer", required=False)
     parser.add_argument("--machine", type=str, action="store", default="", help="Specify the identifier of a machine you want to use", required=False)
     parser.add_argument("--platform", type=str, action="store", default="", help="Specify the operating system platform you want to use (windows/darwin/linux)", required=False)
+    parser.add_argument("--pool_id", type=str, action="store", default="default", help="Specify the pool id of the machines you want to use", required=False)
     parser.add_argument("--memory", action="store_true", default=False, help="Enable to take a memory dump of the analysis machine", required=False)
     parser.add_argument("--enforce-timeout", action="store_true", default=False, help="Enable to force the analysis to run for the full timeout period", required=False)
 
@@ -51,6 +52,7 @@ def main():
                              priority=args.priority,
                              machine=args.machine,
                              platform=args.platform,
+                             pool_id=args.pool_id,
                              custom=args.custom,
                              memory=args.memory,
                              enforce_timeout=args.enforce_timeout)
@@ -83,6 +85,7 @@ def main():
                                   priority=args.priority,
                                   machine=args.machine,
                                   platform=args.platform,
+                                  pool_id=args.pool_id,
                                   custom=args.custom,
                                   memory=args.memory,
                                   enforce_timeout=args.enforce_timeout)

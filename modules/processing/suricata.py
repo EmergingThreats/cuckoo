@@ -8,6 +8,7 @@ import subprocess
 
 from lib.cuckoo.common.constants import CUCKOO_ROOT
 from lib.cuckoo.common.abstracts import Processing
+from lib.cuckoo.core.database import Database
 
 log = logging.getLogger(__name__)
 class Suricata(Processing):
@@ -37,6 +38,7 @@ class Suricata(Processing):
         suricata["alerts"]=[]
         suricata["alert_cnt"] = 0
         suricata["tls"]=[]
+        suricata["tls_cnt"] = 0
         suricata["perf"]=[]
         suricata["files"]=[]
         suricata["http"]=[]      
@@ -70,6 +72,7 @@ class Suricata(Processing):
                     f = open(SURICATA_TLS_FULL_PATH).readlines()
                     for l in f:
                         suricata["tls"].append(l)
+                        suricata["tls_cnt"] = suricata["tls_cnt"] + 1
                 else:
                     log.warning("Suricata: Failed to find TLS log at %s" % (SURICATA_TLS_FULL_PATH))
 
@@ -77,6 +80,7 @@ class Suricata(Processing):
                     f = open(SURICATA_HTTP_LOG_FULL_PATH).readlines()
                     for l in f:
                         suricata["http"].append(l)
+                        suricata["http_cnt"] = suricata["http_cnt"] + 1
                 else:
                     log.warning("Suricata: Failed to find http log at %s" % (SURICATA_HTTP_LOG_FULL_PATH))
 
@@ -98,5 +102,5 @@ class Suricata(Processing):
                 log.warning("Suricata returned a Exit Value Other than Zero %s" % (stderr))
         except Exception,e:
             log.warning("Unable to Run Suricata: %s" % e)
-
+        Database().suri_stats(int(self.task["id"]), suricata["alert_cnt"], suricata["http_cnt"], suricata["tls_cnt"]) 
         return suricata 

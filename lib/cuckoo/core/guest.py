@@ -32,7 +32,6 @@ class GuestManager:
         self.id = vm_id
         self.ip = ip
         self.platform = platform
-
         self.cfg = Config()
         self.timeout = self.cfg.timeouts.critical
         self.server = TimeoutServer("http://{0}:{1}".format(ip, CUCKOO_GUEST_PORT),

@@ -63,11 +63,12 @@ class MachineManager(object):
                 machine.label = machine_opts["label"].strip()
                 machine.platform = machine_opts["platform"].strip()
                 machine.ip = machine_opts["ip"].strip()
-
+                machine.pool_id = machine_opts["pool_id"].strip()
                 self.db.add_machine(name=machine.id,
                                     label=machine.label,
                                     ip=machine.ip,
-                                    platform=machine.platform)
+                                    platform=machine.platform,
+                                    pool_id=machine.pool_id)
             except (AttributeError, CuckooOperationalError):
                 log.warning("Configuration details about machine %s are missing. Continue", machine_id)
                 continue
@@ -104,7 +105,7 @@ class MachineManager(object):
         """
         return self.db.count_machines_available()
 
-    def acquire(self, machine_id=None, platform=None):
+    def acquire(self, machine_id=None, platform=None,pool_id=None):
         """Acquire a machine to start analysis.
         @param machine_id: machine ID.
         @param platform: machine platform.
@@ -114,6 +115,8 @@ class MachineManager(object):
             return self.db.lock_machine(name=machine_id)
         elif platform:
             return self.db.lock_machine(platform=platform)
+        elif pool_id:
+            return self.db.lock_machine(pool_id=pool_id)
         else:
             return self.db.lock_machine()
 

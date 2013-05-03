@@ -32,6 +32,32 @@ env = Environment()
 env.loader = FileSystemLoader(os.path.join(CUCKOO_ROOT, "data", "html"))
 # Global db pointer.
 db = Database()
+redirectors=[]
+rddict={}
+pools=[]
+
+try:
+    pcfg = Config(cfg=os.path.join(CUCKOO_ROOT,"conf","redirectors.conf"))
+    rddict = pcfg.get('redirectors')
+    for entry in rddict:
+        redirectors.append(entry)
+except:
+    redirectors = None
+    print("failed to get redirectors")
+
+try:
+    pcfg = Config(cfg=os.path.join(CUCKOO_ROOT,"conf","processing.conf"))
+    suricfg = pcfg.get('suricata')
+    molochcfg = pcfg.get('network-moloch')
+except:
+    suricfg = None
+    molochcfg = None
+    print("failed to get suri/moloch config blocks")
+
+try:
+    pools=open(os.path.join(CUCKOO_ROOT,"conf","pools.txt")).read().splitlines()
+except Exception as e:
+    print("failed to read pools config %s" % (e))
 
 @hook("after_request")
 def custom_headers():
@@ -48,20 +74,11 @@ def custom_headers():
 def index():
     context = {}
     template = env.get_template("submit.html")
-    return template.render({"context" : context})
+    return template.render({"context" : context, "pools": pools, "redirectors" : redirectors})
 
 @route("/browse")
 def browse():
     rows = db.list_tasks()
-
-    try:
-        pcfg = Config(cfg=os.path.join(CUCKOO_ROOT,"conf","processing.conf"))
-        suricfg = pcfg.get('suricata')
-        molochcfg = pcfg.get('network-moloch')
-    except:
-        suricfg = None
-        molochcfg = None
-        print("failed to get suri/moloch config blocks")
 
     tasks = []
     for row in rows:
@@ -71,6 +88,9 @@ def browse():
             "category" : row.category,
             "status" : row.status,
             "added_on" : row.added_on,
+            "surialert_cnt": row.surialert_cnt,
+            "surihttp_cnt": row.surihttp_cnt,
+            "suritls_cnt": row.suritls_cnt,
             "processed" : False
         }
 
@@ -102,6 +122,7 @@ def submit():
     timeout  = request.forms.get("timeout", "")
     url      = request.forms.get("url","")
     urlrd    = request.forms.get("urlrd","")
+    pool_id  = request.forms.get("pool_id","default")
     data = request.files.file
 
     try:
@@ -111,26 +132,42 @@ def submit():
         context["error_priority"] = "Needs to be a number"
         errors = True
 
+    if pool_id not in pools:
+        context["error_toggle"] = True
+        context["error_pool_id"] = "Invalid Pool"
+        errors = True
+        print "poolid %s not in %s" % (pool_id,pools)
+
     # File or URL mandatory
     if (data == None or data == "") and (url == None or url == ""):
         context["error_toggle"] = True
         context["error_file"] = "Mandatory"
         errors = True
-       
-    if errors:
-        template = env.get_template("submit.html")
-        return template.render({"timeout" : timeout,
-                                "priority" : priority,
-                                "options" : options,
-                                "package" : package,
-                                "context" : context})
-    if url != None and url != "":
-        task_id = db.add_url(url,
-                             package=package,
-                             timeout=timeout,
-                             options=options,
-                             priority=priority,
-                             )
+    
+    if url and url != "":
+        if urlrd != None and urlrd != "" and urlrd != "None":
+            if rddict.has_key(urlrd):
+               url = "%s%s" % (rddict[urlrd],url)
+            else:
+               context["error_toggle"] = True
+               context["error_urlrd"] = "Invalid Redirector"
+               errors = True
+               print("urlrd %s not in %s" % (urlrd,rddict))
+        if errors:
+            template = env.get_template("submit.html")
+            return template.render({"timeout" : timeout,
+                                    "priority" : priority,
+                                    "options" : options,
+                                    "package" : package,
+                                    "context" : context,
+                                    "pool_id" : pool_id})
+        else:
+            task_id = db.add_url(url,
+                                 package=package,
+                                 timeout=timeout,
+                                 options=options,
+                                 priority=priority,
+                                 pool_id=pool_id)
         
         template = env.get_template("success.html")
         return template.render({"taskid" : task_id,
@@ -144,7 +181,8 @@ def submit():
                              timeout=timeout,
                              priority=priority,
                              options=options,
-                             package=package)
+                             package=package,
+                             pool_id=pool_id)
 
         template = env.get_template("success.html")
         return template.render({"taskid" : task_id,
@@ -183,7 +221,7 @@ def surihttp(task_id):
     if not task_id.isdigit():
         return HTTPError(code=404, output="The specified ID is invalid")
 
-    suri_http_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs","http.log")
+    suri_http_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs",suricfg['httplog'])
     #print suri_http_path
     # Check if the HTML report exists
     if not os.path.exists(suri_http_path):
@@ -198,7 +236,22 @@ def surialert(task_id):
     if not task_id.isdigit():
         return HTTPError(code=404, output="The specified ID is invalid")
 
-    suri_alert_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs","alert")
+    suri_alert_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs",suricfg['alertlog'])
+    #print suri_alert_path
+    # Check if the HTML report exists
+    if not os.path.exists(suri_alert_path):
+        return HTTPError(code=404, output="Report not found")
+    response.set_header('Content-Type', 'text/plain; charset=UTF-8')
+    # Return content of the HTML report
+    return open(suri_alert_path, "rb").read()
+
+@route("/suritls/<task_id>")
+def surialert(task_id):
+    # Check if the specified task ID is valid
+    if not task_id.isdigit():
+        return HTTPError(code=404, output="The specified ID is invalid")
+
+    suri_alert_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id,"logs",suricfg['tlslog'])
     #print suri_alert_path
     # Check if the HTML report exists
     if not os.path.exists(suri_alert_path):

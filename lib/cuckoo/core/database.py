@@ -38,6 +38,7 @@ class Machine(Base):
     label = Column(String(255), nullable=False)
     ip = Column(String(255), nullable=False)
     platform = Column(String(255), nullable=False)
+    pool_id = Column(String(255), nullable=False)
     locked = Column(Boolean(), nullable=False, default=False)
     locked_changed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(String(255), nullable=True)
@@ -69,11 +70,13 @@ class Machine(Base):
                  name,
                  label,
                  ip,
-                 platform):
+                 platform,
+                 pool_id):
         self.name = name
         self.label = label
         self.ip = ip
         self.platform = platform
+        self.pool_id = pool_id
 
 class Guest(Base):
     """Tracks guest run."""
@@ -227,6 +230,7 @@ class Task(Base):
     package = Column(String(255), nullable=True)
     options = Column(String(255), nullable=True)
     platform = Column(String(255), nullable=True)
+    pool_id = Column(String(255), nullable=True)
     memory = Column(Boolean, nullable=False, default=False)
     enforce_timeout = Column(Boolean, nullable=False, default=False)
     added_on = Column(DateTime(timezone=False),
@@ -245,6 +249,9 @@ class Task(Base):
     sample = relationship("Sample", backref="tasks")
     guest = relationship("Guest", uselist=False, backref="tasks", cascade="save-update, delete")
     errors = relationship("Error", backref="tasks", cascade="save-update, delete")
+    surialert_cnt = Column(Integer(), server_default="0", nullable=False)
+    surihttp_cnt = Column(Integer(), server_default="0", nullable=False)
+    suritls_cnt = Column(Integer(), server_default="0", nullable=False)
 
     def to_dict(self):
         """Converts object to dict.
@@ -353,7 +360,8 @@ class Database(object):
                     name,
                     label,
                     ip,
-                    platform):
+                    platform,
+                    pool_id):
         """Add a guest machine.
         @param name: machine id
         @param labal: machine label
@@ -364,11 +372,12 @@ class Database(object):
         machine = Machine(name=name,
                           label=label,
                           ip=ip,
-                          platform=platform)
+                          platform=platform,
+                          pool_id=pool_id)
         session.add(machine)
         try:
             session.commit()
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             session.rollback()
         finally:
             session.close()
@@ -400,20 +409,33 @@ class Database(object):
         """
         session = self.Session()
         try:
-            row = session.query(Task).filter(Task.status == "pending").order_by("priority desc, added_on").first()
-            if row:
-                row.status = "processing"
-                row.started_on = datetime.now()
-            else:
-                return None
-            session.commit()
-            session.refresh(row)
+            pending_tasks = session.query(Task).filter(Task.status == "pending").order_by("priority desc, added_on").all()
         except SQLAlchemyError:
+            return None
+
+        #Since we added pool_id's we need to iterate over the task list to see if machines are avaliable in the pool.
+        #This is probably broken for platform filtering as well.
+        try: 
+            for row in pending_tasks:
+                if row.pool_id:
+                    free_machine = session.query(Machine).filter(Machine.pool_id == row.pool_id).filter(Machine.locked == False).first() 
+                    if free_machine: 
+                        row.status = "processing"
+                        row.started_on = datetime.now()
+                        session.commit()
+                        session.refresh(row)
+                        session.close()
+                        return row
+                    else:
+                        continue
+                else:
+                    session.rollback()
+                    return None
+            return None
+        except SQLAlchemyError as e:
+            print e
             session.rollback()
             return None
-        finally:
-            session.close()
-        return row
 
     def complete(self, task_id, success=True):
         """Mark a task as completed.
@@ -434,6 +456,35 @@ class Database(object):
             task.status = "failure"
 
         task.completed_on = datetime.now()
+
+        try:
+            session.commit()
+        except SQLAlchemyError:
+            session.rollback()
+            return False
+        finally:
+            session.close()
+
+        return True
+
+    def suri_stats(self, task_id, surialert_cnt=0, surihttp_cnt=0, suritls_cnt=0):
+        """Add suri alert counts so we can display them in web.
+        @param task_id: task id.
+        @param surialert_cnt: Number of suricata alerts
+        @param surihttp_cnt: Number suricata http requests
+        @param suritls_cnt: Number of suri tls entries
+        @return: operation status.
+        """
+        session = self.Session()
+        try:
+            task = session.query(Task).get(task_id)
+        except SQLAlchemyError:
+            session.close()
+            return False
+
+        task.surialert_cnt = surialert_cnt
+        task.surihttp_cnt = surihttp_cnt
+        task.suritls_cnt = suritls_cnt
 
         try:
             session.commit()
@@ -495,21 +546,24 @@ class Database(object):
             session.close()
         return machines
 
-    def lock_machine(self, name=None, platform=None):
+    def lock_machine(self, name=None, platform=None, pool_id=None):
         """Places a lock on a free virtual machine.
         @param name: optional virtual machine name
         @param platform: optional virtual machine platform
+        @param pool_id: A pool of similar machines
         @return: locked machine
         """
         session = self.Session()
         try:
-            if name and platform:
+            if name and platform or name and pool_id or platform and pool_id or platform and pool_id and name:
                 # Wrong usage.
                 return None
             elif name:
                 machine = session.query(Machine).filter(Machine.name == name).filter(Machine.locked == False).first()
             elif platform:
                 machine = session.query(Machine).filter(Machine.platform == platform).filter(Machine.locked == False).first()
+            elif pool_id:
+                machine = session.query(Machine).filter(Machine.pool_id == pool_id).filter(Machine.locked == False).first()
             else:
                 machine = session.query(Machine).filter(Machine.locked == False).first()
         except SQLAlchemyError:
@@ -620,6 +674,7 @@ class Database(object):
             custom="",
             machine="",
             platform="",
+            pool_id="",
             memory=False,
             enforce_timeout=False):
         """Add a task to database.
@@ -630,6 +685,7 @@ class Database(object):
         @param custom: custom options.
         @param machine: selected machine.
         @param platform: platform.
+        @param pool_id: pool_id
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @return: cursor or None.
@@ -672,6 +728,7 @@ class Database(object):
         task.custom = custom
         task.machine = machine
         task.platform = platform
+        task.pool_id = pool_id
         task.memory = memory
         task.enforce_timeout = enforce_timeout
         session.add(task)
@@ -695,6 +752,7 @@ class Database(object):
                  custom="",
                  machine="",
                  platform="",
+                 pool_id="",
                  memory=False,
                  enforce_timeout=False):
         """Add a task to database from file path.
@@ -705,6 +763,7 @@ class Database(object):
         @param custom: custom options.
         @param machine: selected machine.
         @param platform: platform.
+        @param pool_id: pool_id
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @return: cursor or None.
@@ -720,6 +779,7 @@ class Database(object):
                         custom,
                         machine,
                         platform,
+                        pool_id,
                         memory,
                         enforce_timeout)
 
@@ -732,6 +792,7 @@ class Database(object):
                 custom="",
                 machine="",
                 platform="",
+                pool_id="",
                 memory=False,
                 enforce_timeout=False):
         """Add a task to database from url.
@@ -742,6 +803,7 @@ class Database(object):
         @param custom: custom options.
         @param machine: selected machine.
         @param platform: platform.
+        @param pool_id.
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @return: cursor or None.
@@ -754,6 +816,7 @@ class Database(object):
                         custom,
                         machine,
                         platform,
+                        pool_id,
                         memory,
                         enforce_timeout)
 

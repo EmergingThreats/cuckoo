@@ -4,6 +4,12 @@
         <div class="page-header">
             <h3>Analysis Tasks <small>performed, processing and pending analyses</small></h3>
         </div>
+        <style type="text/css">
+            A:link {text-decoration: none}
+            A:visited {font-weight:bold; color: red;}
+            A:active {text-decoration: none}
+            A:hover {text-decoration: none}
+        </style>
         <table class="table table-striped table-bordered">
             <thead>
                 <tr>
@@ -15,6 +21,7 @@
                         <th>Suri HTTP</th>
                         <th>Suri Alerts</th>
                         <th>Suri Extracted</th>
+                        <th>Suri TLS</th>
                     {% endif %}
                     {% if molochcfg.enabled %}
                         <th>Moloch</th>
@@ -45,8 +52,9 @@
                     </td>
                     <td><a href="/pcap/{{row.id}}"><span class="mono">PCAP</span></a></td>
                     {% if suricfg.enabled %}
-                        <td><a href="/surihttp/{{row.id}}"><span class="mono">Suri HTTP</span></a></td>
-                        <td><a href="/surialert/{{row.id}}"><span class="mono">Suri Alerts</span></a></td>
+                        <td><a href="/surihttp/{{row.id}}"><span class="mono">Suri HTTP({{row.surihttp_cnt}})</span></a></td>
+                        <td><a href="/surialert/{{row.id}}"><span class="mono">Suri Alerts({{row.surialert_cnt}})</span></a></td>
+                        <td><a href="/suritls/{{row.id}}"><span class="mono">Suri TLS({{row.suritls_cnt}})</span></a></td>
                         <td><a href="/surifiles/{{row.id}}"><span class="mono">Suri Extracted</span></a></td>
                     {% endif %}
                     {% if molochcfg.enabled %}

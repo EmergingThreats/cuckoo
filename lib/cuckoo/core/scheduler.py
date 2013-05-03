@@ -120,9 +120,9 @@ class AnalysisManager(Thread):
             # If the user specified a specific machine ID or a platform to be
             # used, acquire the machine accordingly.
             machine = mmanager.acquire(machine_id=self.task.machine,
-                                       platform=self.task.platform)
+                                       platform=self.task.platform,
+                                       pool_id=self.task.pool_id)
             machine_lock.release()
-
             # If no machine is available at this moment, wait for one second
             # and try again.
             if not machine:
