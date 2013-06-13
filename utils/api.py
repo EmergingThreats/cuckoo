@@ -52,7 +52,7 @@ def tasks_create_file():
     options = request.forms.get("options", "")
     machine = request.forms.get("machine", "")
     platform = request.forms.get("platform", "")
-    pool_id = request.forms.get("pool_id","")
+    pool_id = request.forms.get("pool_id","default")
     custom = request.forms.get("custom", "")
     memory = request.forms.get("memory", False)
     if memory:
@@ -88,7 +88,7 @@ def tasks_create_url():
     options = request.forms.get("options", "")
     machine = request.forms.get("machine", "")
     platform = request.forms.get("platform", "")
-    pool_id = request.forms.get("pool_id", "")
+    pool_id = request.forms.get("pool_id", "default")
     custom = request.forms.get("custom", "")
     memory = request.forms.get("memory", False)
     if memory:

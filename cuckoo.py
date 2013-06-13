@@ -19,6 +19,27 @@ except (CuckooDependencyError, ImportError) as e:
 
 log = logging.getLogger()
 
+def write_pid(pidfile):
+    pid = str(os.getpid())
+    try:
+        file(pidfile, 'w').write(pid)
+    except Exception as e:
+        sys.stderr.write("Failed to write pid %s to file %s:%s\n" % (pid,pidfile,e))
+        return 1
+    return 0
+
+def remove_pid(pidfile):
+    if os.path.isfile(pidfile):
+        try:
+            os.remove(pidfile)
+        except:
+            sys.stderr.write("Failed to remove pid file %s\n" % pidfile)
+            return 1
+    else:
+        sys.stderr.write("Pid file does not exist %s\n" % pidfile)
+        return 1
+    return 0
+
 def main():
     logo()
     check_working_directory()
@@ -31,7 +52,12 @@ def main():
     parser.add_argument("-d", "--debug", help="Display debug messages", action="store_true", required=False)
     parser.add_argument("-v", "--version", action="version", version="You are running Cuckoo Sandbox %s" % CUCKOO_VERSION)
     parser.add_argument("-a", "--artwork", help="Show artwork", action="store_true", required=False)
+    parser.add_argument("-P", "--pid", help="Write pid to this file", action="store", required=False)
     args = parser.parse_args()
+
+    if args.pid:
+        write_pid(args.pid) 
+
 
     if args.artwork:
         import time
@@ -40,6 +66,8 @@ def main():
                 time.sleep(1)
                 logo()
         except KeyboardInterrupt:
+            if args.pid:
+                remove_pid(args.pid)
             return
 
     init_logging()
@@ -58,6 +86,9 @@ def main():
         sched.start()
     except KeyboardInterrupt:
         sched.stop()
+        if args.pid:
+            remove_pid(args.pid)
+ 
 
 if __name__ == "__main__":
     try:

@@ -38,7 +38,7 @@ def importpcaps():
             return 0
         try:
             cmd = "%s -c %s -r %s -n %s -t %s" % (MOLOCH_CAPTURE_BIN,MOLOCH_CAPTURE_CONF,pcap,CUCKOO_INSTANCE_TAG,task_id)
-            ret,stdout,sderr = cmd_wrapper(cmd)
+            ret,stdout,stderr = cmd_wrapper(cmd)
             time.sleep(1)
             if ret == 0:
                 print("moloch: imported pcap %s" % (pcap))

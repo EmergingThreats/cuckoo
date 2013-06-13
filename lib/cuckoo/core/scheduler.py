@@ -257,8 +257,11 @@ class AnalysisManager(Thread):
             except CuckooMachineError as e:
                 log.warning("Unable to stop machine %s: %s", machine.label, e)
 
-            # Market the machine in the database as stopped.
-            Database().guest_stop(guest_log)
+            try:
+                # Market the machine in the database as stopped.
+                Database().guest_stop(guest_log)
+            except Exception as e:
+                log.error("Unable to mark the guest as stopped")
 
             try:
                 # Release the analysis machine.

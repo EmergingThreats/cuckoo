@@ -78,7 +78,7 @@ def index():
 
 @route("/browse")
 def browse():
-    rows = db.list_tasks()
+    rows = db.list_tasks(args.limit)
 
     tasks = []
     for row in rows:
@@ -98,8 +98,11 @@ def browse():
             task["processed"] = True
 
         if row.category == "file":
-            sample = db.view_sample(row.sample_id)
-            task["md5"] = sample.md5
+            try:
+                sample = db.view_sample(row.sample_id)
+                task["md5"] = sample.md5
+            except:
+                task["md5"] = "unknown"
 
         tasks.append(task)
 
@@ -280,6 +283,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-H", "--host", help="Host to bind the web server on", default="0.0.0.0", action="store", required=False)
     parser.add_argument("-p", "--port", help="Port to bind the web server on", default=8080, action="store", required=False)
+    parser.add_argument("-L", "--limit", help="Number of Jobs to limit in display", default=1000, action="store", required=False)
     args = parser.parse_args()
 
     run(host=args.host, port=args.port, reloader=True)
