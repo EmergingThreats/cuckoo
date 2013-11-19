@@ -27,6 +27,28 @@ from lib.cuckoo.common.constants import CUCKOO_ROOT
 from lib.cuckoo.common.utils import store_temp_file
 from lib.cuckoo.common.config import Config
 
+def write_pid(pidfile):
+    pid = str(os.getpid())
+    try:
+        file(pidfile, 'w').write(pid)
+    except Exception as e:
+        sys.stderr.write("Failed to write pid %s to file %s:%s\n" % (pid,pidfile,e))
+        return 1
+    return 0
+
+def remove_pid(pidfile):
+    if os.path.isfile(pidfile):
+        try:
+            os.remove(pidfile)
+        except:
+            sys.stderr.write("Failed to remove pid file %s\n" % pidfile)
+            return 1
+    else:
+        sys.stderr.write("Pid file does not exist %s\n" % pidfile)
+        return 1
+    return 0
+
+
 # Templating engine.
 env = Environment()
 env.loader = FileSystemLoader(os.path.join(CUCKOO_ROOT, "data", "html"))
@@ -284,6 +306,11 @@ if __name__ == "__main__":
     parser.add_argument("-H", "--host", help="Host to bind the web server on", default="0.0.0.0", action="store", required=False)
     parser.add_argument("-p", "--port", help="Port to bind the web server on", default=8080, action="store", required=False)
     parser.add_argument("-L", "--limit", help="Number of Jobs to limit in display", default=1000, action="store", required=False)
+    parser.add_argument("-P", "--pid", help="Write pid to this file", action="store", required=False)
     args = parser.parse_args()
 
+    if args.pid:
+        write_pid(args.pid)
+
     run(host=args.host, port=args.port, reloader=True)
+
